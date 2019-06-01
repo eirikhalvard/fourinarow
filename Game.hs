@@ -6,7 +6,7 @@ import           Text.Read
 main :: IO ()
 main = start
 
-data Player = P1 | P2
+data Player = P1 | P2 deriving Eq
 type Board = [[Player]]
 
 -- Game parameters
@@ -17,8 +17,8 @@ rows = 6
 cols :: Int
 cols = 7
 
-numInRow :: Int
-numInRow = 4
+numToWin :: Int
+numToWin = 4
 
 instance Show Player where
   show P1 = "🔴"
@@ -63,8 +63,6 @@ updateBoard board player col = as ++ (player:b):bs
   where
     (as,b:bs) = splitAt col board
 
--- Play game functions
-
 numInColumn :: Board -> Int -> Int
 numInColumn (b:board) 0 = length b
 numInColumn (b:board) n = numInColumn board (n-1)
@@ -73,6 +71,28 @@ numInColumn _ _ = error "du er dum"
 next :: Player -> Player
 next P1 = P2 
 next P2 = P1
+
+-- Win checking
+
+columnWin :: Player -> Board -> Bool
+columnWin player = any
+  $ (>= numToWin)
+  . maximum 
+  . map length 
+  . filter ((player ==) . head)
+  . group
+
+rowWin :: Player -> Board -> Bool
+rowWin player = any
+  $ (>= numToWin)
+  . maximum 
+  . map length 
+  . filter ((player ==) . head)
+  . group
+
+
+
+-- Play game functions
 
 start :: IO ()
 start = do
@@ -87,9 +107,9 @@ play board player = do
   c <- getChar
   case readMaybe [c] of
     Just n' -> do 
-      updatePosition player ((n'-1), rows -1 - numInColumn board (n'-1))
-      goto (1,40)
-      print $ (updateBoard board player (n'-1))
+      updatePosition player ((n'-1), rows-1 - numInColumn board (n'-1))
+      goto (1,40) ---remove
+      print $ (updateBoard board player (n'-1)) ---remove
       play (updateBoard board player (n'-1)) (next player)
     Nothing -> play board player
 
