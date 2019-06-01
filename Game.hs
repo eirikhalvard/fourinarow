@@ -2,12 +2,13 @@ module Main where
 import           Control.Monad (replicateM_)
 import           Data.List
 import           Text.Read
+import           Data.Maybe
 
 main :: IO ()
 main = start
 
 data Player = P1 | P2 deriving Eq
-type Board = [[Player]]
+type Board = [[Maybe Player]]
 
 -- Game parameters
 
@@ -21,11 +22,11 @@ numToWin :: Int
 numToWin = 4
 
 instance Show Player where
-  show P1 = "🔴"
-  show P2 = "🔵"
+  show P1    = "🔴"
+  show P2    = "🔵"
 
 initial :: Board
-initial = replicate cols []
+initial = replicate cols $ replicate rows Nothing 
 
 -- Show utilities
 
@@ -45,8 +46,6 @@ showEmptyBoard = do
 
 updatePosition :: Player -> (Int, Int) -> IO ()
 updatePosition player (colPos, rowPos) = do
-  goto (15, 2)
-  putStrLn $ "updating " ++ (show player) ++ " on position " ++ show colPos ++ ", " ++ show rowPos ++ ".... actuall numbers: " ++ show posx ++ ", " ++ show posy
   goto (posx, posy+2)
   putStr (show player)
   where
@@ -58,15 +57,24 @@ showSelectionRow player = undefined
 
 -- Update functions
 
-updateBoard :: Board -> Player -> Int -> Board
-updateBoard board player col = as ++ (player:b):bs
+replaceFirstMatch :: (a -> Bool) -> a -> [a] -> Maybe [a]
+replaceFirstMatch p r xs = if any p xs then Just (rep xs) else Nothing
   where
-    (as,b:bs) = splitAt col board
+    rep (x:xs) 
+      | p x       = r : xs
+      | otherwise = x : rep xs
+
+updateBoard :: Board -> Player -> Int -> Maybe Board
+updateBoard board player col = do 
+  (b,bs') <- uncons bs
+  b' <- replaceFirstMatch isNothing (Just player) b
+  return $ as ++ (b' : bs')
+    where (as,bs) = splitAt col board
 
 numInColumn :: Board -> Int -> Int
-numInColumn (b:board) 0 = length b
+numInColumn (b:board) 0 = length $ catMaybes b
 numInColumn (b:board) n = numInColumn board (n-1)
-numInColumn _ _ = error "du er dum"
+numInColumn _ _ = error "du er dum og rett og slett dårlig til å programmere"
 
 next :: Player -> Player
 next P1 = P2 
@@ -75,22 +83,20 @@ next P2 = P1
 -- Win checking
 
 columnWin :: Player -> Board -> Bool
-columnWin player = any
-  $ (>= numToWin)
+columnWin player = any $ (>= numToWin)
   . maximum 
   . map length 
   . filter ((player ==) . head)
   . group
+  . catMaybes
 
-rowWin :: Player -> Board -> Bool
-rowWin player = any
-  $ (>= numToWin)
-  . maximum 
-  . map length 
-  . filter ((player ==) . head)
-  . group
-
-
+-- rowWin :: Player -> Board -> Bool
+-- rowWin player = any
+--   $ (>= numToWin)
+--   . maximum 
+--   . map length 
+--   . filter ((player ==) . head)
+--   . group
 
 -- Play game functions
 
@@ -107,10 +113,13 @@ play board player = do
   c <- getChar
   case readMaybe [c] of
     Just n' -> do 
-      updatePosition player ((n'-1), rows-1 - numInColumn board (n'-1))
-      goto (1,40) ---remove
-      print $ (updateBoard board player (n'-1)) ---remove
-      play (updateBoard board player (n'-1)) (next player)
+      case (updateBoard board player (n'-1)) of
+        Just newBoard -> do 
+          goto (1, 20)
+          print $ newBoard
+          updatePosition player ((n'-1), rows-1 - numInColumn board (n'-1))
+          play newBoard (next player)
+        Nothing -> play board player
     Nothing -> play board player
 
 -- Command line utils
