@@ -1,8 +1,8 @@
 module Main where
-import           Control.Monad (replicateM_)
-import           Data.List
-import           Text.Read
-import           Data.Maybe
+import Control.Monad (replicateM_)
+import Data.List
+import Text.Read
+import Data.Maybe
 
 main :: IO ()
 main = start
@@ -82,21 +82,38 @@ next P2 = P1
 
 -- Win checking
 
-columnWin :: Player -> Board -> Bool
-columnWin player = any $ (>= numToWin)
-  . maximum 
-  . map length 
-  . filter ((player ==) . head)
-  . group
-  . catMaybes
-
--- rowWin :: Player -> Board -> Bool
--- rowWin player = any
---   $ (>= numToWin)
+-- columnWin :: Player -> Board -> Bool
+-- columnWin player = any $ (>= numToWin)
 --   . maximum 
 --   . map length 
 --   . filter ((player ==) . head)
 --   . group
+--   . catMaybes
+
+columnWin :: Player -> Board -> Bool
+columnWin player = or 
+  . map (any ((>= numToWin) . length)
+        . filter ((== player) . fromJust . head)
+        . filter (isJust . head)
+        . group)
+
+rowWin :: Player -> Board -> Bool
+rowWin player = columnWin player . transpose
+
+diagonalWin :: Player -> Board -> Bool
+diagonalWin player board = columnWin player
+  (diagonals board ++ diagonals (reverse board))
+
+diagonals []       = []
+diagonals ([]:xss) = xss
+diagonals xss      = zipWith (++)
+  (map ((:[]) . head) xss ++ repeat [])
+  ([]:(diagonals (map tail xss)))
+
+win :: Player -> Board -> Bool
+win player board = any 
+  (\p -> p player board)
+  [columnWin, rowWin, diagonalWin]
 
 -- Play game functions
 
@@ -115,9 +132,11 @@ play board player = do
     Just n' -> do 
       case (updateBoard board player (n'-1)) of
         Just newBoard -> do 
-          goto (1, 20)
-          print $ newBoard
           updatePosition player ((n'-1), rows-1 - numInColumn board (n'-1))
+          goto (1, 18)
+          putStrLn (if win player newBoard
+            then ("Hooray! " ++ (show player) ++ "is the winner!")
+            else ("No one has won yet!"))
           play newBoard (next player)
         Nothing -> play board player
     Nothing -> play board player
