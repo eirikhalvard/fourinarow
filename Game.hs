@@ -144,6 +144,7 @@ select n p = do
   putStr (show p)
   goto (1,2)
   clrline
+  hFlush stdout
   c <- getChar
   goto (1,4)
   clrline
