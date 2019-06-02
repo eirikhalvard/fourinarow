@@ -44,12 +44,12 @@ emptyBoard = intersperse emptyRow $ replicate (rows+1) rowDelimiter
 
 showEmptyBoard :: IO ()
 showEmptyBoard = do 
-  goto (1, 3)
+  goto (1, 5)
   mapM_ putStrLn emptyBoard
 
 updatePosition :: Player -> (Int, Int) -> IO ()
 updatePosition player (colPos, rowPos) = do
-  goto (posx, posy+2)
+  goto (posx, posy+4)
   putStr (show player)
   where
     posx = 4 * colPos + 3
@@ -125,28 +125,35 @@ start :: IO ()
 start = do
   cls
   showEmptyBoard
-  play initial P1
+  play initial P1 0
 
-play :: Board -> Player -> IO ()
-play board player = do
-  goto (1,1)
-  putStrLn $ (show player) ++ "-s turn!"
+play :: Board -> Player -> Int -> IO ()
+play board player n = do
+  n' <- select n player
+  case (updateBoard board player n') of
+    Just newBoard -> do 
+      updatePosition player (n', rows-1 - numInColumn board n')
+      if (win player newBoard)
+        then winner player
+        else play newBoard (next player) n'
+    Nothing -> play board player n'
+
+select :: Int -> Player -> IO Int
+select n p = do
+  goto (4*n + 2,4)
+  putStr (show p)
+  goto (1,2)
+  clrline
   c <- getChar
-  case readMaybe [c] of
-    Just n' -> do 
-      case (updateBoard board player (n'-1)) of
-        Just newBoard -> do 
-          updatePosition player ((n'-1), rows-1 - numInColumn board (n'-1))
-          goto (1, 18)
-          if (win player newBoard)
-            then winner player
-            else play newBoard (next player)
-        Nothing -> play board player
-    Nothing -> play board player
-
-select :: IO ()
-select = do
-  cls
+  goto (1,4)
+  clrline
+  choose c
+  where 
+    choose c
+      | c `elem` "aj" = select ((n-1)`mod` cols) p
+      | c `elem` "dl" = select ((n+1)`mod` cols) p
+      | c `elem` "sk" = return n
+      | otherwise     = select n p
 
 winner :: Player -> IO ()
 winner player = do
@@ -154,6 +161,7 @@ winner player = do
   putStrLn $ "Hooray! " ++ (show player) ++ " is the winner!"
   putStrLn $ "[q]uit, [r]eplay"
   c <- getChar
+  clrline
   case c of
     'q' -> cls >> goto (1,1)
     'r' -> start
@@ -163,6 +171,9 @@ winner player = do
 -- Command line utils
 cls :: IO ()
 cls = putStr "\ESC[2J"
+
+clrline :: IO ()
+clrline = putStr "\ESC[2K"
 
 goto :: (Int,Int) -> IO ()
 goto (x,y) = putStr ("\ESC[" ++ show y ++ ";" ++ show x ++ "H")
