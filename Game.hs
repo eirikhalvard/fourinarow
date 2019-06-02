@@ -3,9 +3,12 @@ import Control.Monad (replicateM_)
 import Data.List
 import Text.Read
 import Data.Maybe
+import System.IO
 
 main :: IO ()
-main = start
+main = do
+  hSetBuffering stdin NoBuffering
+  start
 
 data Player = P1 | P2 deriving Eq
 type Board = [[Maybe Player]]
@@ -104,6 +107,7 @@ diagonalWin :: Player -> Board -> Bool
 diagonalWin player board = columnWin player
   (diagonals board ++ diagonals (reverse board))
 
+diagonals :: Board -> Board
 diagonals []       = []
 diagonals ([]:xss) = xss
 diagonals xss      = zipWith (++)
@@ -134,12 +138,27 @@ play board player = do
         Just newBoard -> do 
           updatePosition player ((n'-1), rows-1 - numInColumn board (n'-1))
           goto (1, 18)
-          putStrLn (if win player newBoard
-            then ("Hooray! " ++ (show player) ++ "is the winner!")
-            else ("No one has won yet!"))
-          play newBoard (next player)
+          if (win player newBoard)
+            then winner player
+            else play newBoard (next player)
         Nothing -> play board player
     Nothing -> play board player
+
+select :: IO ()
+select = do
+  cls
+
+winner :: Player -> IO ()
+winner player = do
+  goto (1,1)
+  putStrLn $ "Hooray! " ++ (show player) ++ " is the winner!"
+  putStrLn $ "[q]uit, [r]eplay"
+  c <- getChar
+  case c of
+    'q' -> cls >> goto (1,1)
+    'r' -> start
+    _   -> winner player
+
 
 -- Command line utils
 cls :: IO ()
