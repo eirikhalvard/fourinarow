@@ -1,7 +1,5 @@
 module Main where
-import Control.Monad (replicateM_)
 import Data.List
-import Text.Read
 import Data.Maybe
 import System.IO
 
@@ -33,9 +31,6 @@ initial = replicate cols $ replicate rows Nothing
 
 -- Show utilities
 
-showGame :: Board -> IO ()
-showGame s = undefined
-
 emptyBoard :: [String]
 emptyBoard = intersperse emptyRow $ replicate (rows+1) rowDelimiter
   where
@@ -55,15 +50,13 @@ updatePosition player (colPos, rowPos) = do
     posx = 4 * colPos + 3
     posy = 2 * rowPos + 2
 
-showSelectionRow :: Player -> IO ()
-showSelectionRow player = undefined
-
 -- Update functions
 
 replaceFirstMatch :: (a -> Bool) -> a -> [a] -> Maybe [a]
 replaceFirstMatch p r xs = if any p xs then Just (rep xs) else Nothing
   where
-    rep (x:xs) 
+    rep [] = error "something went wrong"
+    rep (x:_) 
       | p x       = r : xs
       | otherwise = x : rep xs
 
@@ -75,8 +68,8 @@ updateBoard board player col = do
     where (as,bs) = splitAt col board
 
 numInColumn :: Board -> Int -> Int
-numInColumn (b:board) 0 = length $ catMaybes b
-numInColumn (b:board) n = numInColumn board (n-1)
+numInColumn (b:_) 0 = length $ catMaybes b
+numInColumn (_:board) n = numInColumn board (n-1)
 numInColumn _ _ = error "du er dum og rett og slett dårlig til å programmere"
 
 next :: Player -> Player
@@ -85,20 +78,12 @@ next P2 = P1
 
 -- Win checking
 
--- columnWin :: Player -> Board -> Bool
--- columnWin player = any $ (>= numToWin)
---   . maximum 
---   . map length 
---   . filter ((player ==) . head)
---   . group
---   . catMaybes
-
 columnWin :: Player -> Board -> Bool
-columnWin player = or 
-  . map (any ((>= numToWin) . length)
-        . filter ((== player) . fromJust . head)
-        . filter (isJust . head)
-        . group)
+columnWin player = any
+    (any ((>= numToWin) . length)
+    . filter ((== player) . fromJust . head)
+    . filter (isJust . head)
+    . group)
 
 rowWin :: Player -> Board -> Bool
 rowWin player = columnWin player . transpose
@@ -112,7 +97,7 @@ diagonals []       = []
 diagonals ([]:xss) = xss
 diagonals xss      = zipWith (++)
   (map ((:[]) . head) xss ++ repeat [])
-  ([]:(diagonals (map tail xss)))
+  ([]:diagonals (map tail xss))
 
 win :: Player -> Board -> Bool
 win player board = any 
@@ -130,10 +115,10 @@ start = do
 play :: Board -> Player -> Int -> IO ()
 play board player n = do
   n' <- select n player
-  case (updateBoard board player n') of
+  case updateBoard board player n' of
     Just newBoard -> do 
       updatePosition player (n', rows-1 - numInColumn board n')
-      if (win player newBoard)
+      if win player newBoard
         then winner player
         else play newBoard (next player) n'
     Nothing -> play board player n'
@@ -159,8 +144,8 @@ select n p = do
 winner :: Player -> IO ()
 winner player = do
   goto (1,1)
-  putStrLn $ "Hooray! " ++ (show player) ++ " is the winner!"
-  putStrLn $ "[q]uit, [r]eplay"
+  putStrLn $ "Hooray! " ++ show player ++ " is the winner!"
+  putStrLn "[q]uit, [r]eplay"
   c <- getChar
   clrline
   case c of
