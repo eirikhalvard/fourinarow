@@ -85,9 +85,9 @@ updateBoard board player col = do
   where (as, bs) = splitAt col board
 
 numInColumn :: Board -> Int -> Int
-numInColumn (b : _) 0 = length $ catMaybes b
+numInColumn (b : _    ) 0 = length $ catMaybes b
 numInColumn (_ : board) n = numInColumn board (n - 1)
-numInColumn _ _ = error "Something went wrong..."
+numInColumn _           _ = error "Something went wrong..."
 
 next :: Player -> Player
 next P1 = P2
